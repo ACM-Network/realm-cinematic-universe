@@ -1,26 +1,188 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #020406;
+  --foreground: #f1f5f9;
+  
+  --color-core-primary: #06b6d4; /* Cyan */
+  --color-core-accent: #e11d48; /* Crimson */
+  --color-emotional-primary: #f59e0b; /* Amber */
+  --color-emotional-accent: #8b5cf6; /* Purple */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+::-webkit-scrollbar-track {
+  background: #020406;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  will-change: background-color; /* Warm color changes optimized */
+}
+
+/* Glassmorphism panels */
+.glass-panel {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(4, 6, 10, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  will-change: transform, opacity; /* GPU layers pre-allocated */
+}
+
+.glass-panel-glow-core {
+  box-shadow: 0 0 30px rgba(6, 182, 212, 0.05), inset 0 0 12px rgba(255, 255, 255, 0.02);
+}
+
+.glass-panel-glow-emotional {
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.05), inset 0 0 12px rgba(255, 255, 255, 0.02);
+}
+
+/* Mirror-like reflective glass for Neelo Nenu */
+.mirror-glass {
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 0 25px rgba(255, 255, 255, 0.05), 0 10px 40px rgba(0, 0, 0, 0.6);
+  will-change: transform;
+}
+
+/* Scanline effect for Holographic cards */
+.scanlines {
+  position: relative;
+  overflow: hidden;
+}
+.scanlines::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 2;
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* Mirrored Reflective Typography mask */
+.mirrored-text-reflection {
+  transform: scaleY(-1);
+  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.18) 0%, transparent 80%);
+  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.18) 0%, transparent 80%);
+  filter: blur(1.5px);
+  user-select: none;
+  pointer-events: none;
+  opacity: 0.55;
+}
+
+/* Atmospheric Volumetric Fog */
+@keyframes fog-drift-one {
+  0% { transform: translate(-10%, -10%) rotate(0deg); }
+  50% { transform: translate(10%, 15%) rotate(180deg); }
+  100% { transform: translate(-10%, -10%) rotate(360deg); }
+}
+
+@keyframes fog-drift-two {
+  0% { transform: translate(15%, -15%) rotate(360deg); }
+  50% { transform: translate(-15%, 10%) rotate(180deg); }
+  100% { transform: translate(15%, -15%) rotate(0deg); }
+}
+
+.volumetric-fog-layer-1 {
+  animation: fog-drift-one 35s ease-in-out infinite;
+  will-change: transform;
+}
+
+.volumetric-fog-layer-2 {
+  animation: fog-drift-two 45s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Water Ripple Distortion simulation */
+@keyframes water-ripple {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.ripple-circle {
+  position: absolute;
+  border: 1.5px solid rgba(165, 243, 252, 0.25);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: water-ripple 2.8s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+}
+
+/* Keyframes animations */
+@keyframes eq {
+  0% { height: 15%; }
+  100% { height: 100%; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes scanline-move {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+/* CSS classes mapping */
+.animate-pulse-glow {
+  animation: pulse-glow 5s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.animate-scanline-move {
+  animation: scanline-move 8s linear infinite;
+  will-change: transform;
+}
+
+/* Volume EQ delays */
+.animate-eq_0\.5s_ease-in-out_infinite_alternate_delay-100 {
+  animation: eq 0.5s ease-in-out infinite alternate;
+}
+.animate-eq_0\.7s_ease-in-out_infinite_alternate_delay-200 {
+  animation: eq 0.7s ease-in-out infinite alternate;
+}
+
+/* Cinematic Title styling */
+.cinematic-title {
+  font-family: var(--font-geist-sans), sans-serif;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+.cinematic-glow-text-core {
+  text-shadow: 0 0 15px rgba(6, 182, 212, 0.4), 0 0 30px rgba(6, 182, 212, 0.2);
+}
+
+.cinematic-glow-text-emotional {
+  text-shadow: 0 0 15px rgba(245, 158, 11, 0.4), 0 0 30px rgba(245, 158, 11, 0.2);
 }
