@@ -9,6 +9,7 @@ import { CustomCursor } from "@/components/CustomCursor";
 import { CinematicTransition } from "@/components/CinematicTransition";
 import { CinematicIntro } from "@/components/CinematicIntro";
 import { LoreTerminal } from "@/components/LoreTerminal";
+import { LockOverlay } from "@/components/LockOverlay";
 
 interface ClientLayoutWrapperProps {
   children: React.ReactNode;
@@ -44,6 +45,9 @@ export const ClientLayoutWrapper = ({ children }: ClientLayoutWrapperProps) => {
 
       {/* Secret Encrypted Lore Archives */}
       <LoreTerminal isOpen={isTerminalOpen} onClose={() => setIsTerminalOpen(false)} />
+
+      {/* Global Locked Section warning popup */}
+      <LockOverlay />
 
       {showMainLayout ? (
         <div className="relative min-h-screen flex flex-col z-10">

@@ -17,7 +17,8 @@ export const Navbar = () => {
     playHoverSound,
     playClickSound,
     volume,
-    setVolume
+    setVolume,
+    triggerSectionLock
   } = useUniverse();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -32,9 +33,15 @@ export const Navbar = () => {
     { name: "About", href: "/about" },
   ];
 
-  const handleLinkClick = () => {
+  // Intercept links to locked sections
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string, name: string) => {
     playClickSound();
     setIsOpen(false);
+    
+    if (href === "/timeline" || href === "/characters") {
+      e.preventDefault();
+      triggerSectionLock(name);
+    }
   };
 
   const toggleUniverseMode = () => {
@@ -43,16 +50,13 @@ export const Navbar = () => {
   };
 
   const triggerLoreTerminal = () => {
-    playClickSound();
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("open-lore-terminal"));
-    }
+    // Intercepted by temporary section lock system
+    triggerSectionLock("Classified Archive Console");
   };
 
   const isEmotional = mode === "emotional";
   
   const accentTextClass = isEmotional ? "text-amber-400" : "text-cyan-400";
-  const glowTextClass = isEmotional ? "cinematic-glow-text-emotional text-amber-400" : "cinematic-glow-text-core text-cyan-400";
   const borderGlowClass = isEmotional ? "border-amber-500/40 text-amber-400 bg-amber-500/5" : "border-cyan-500/40 text-cyan-400 bg-cyan-500/5";
 
   return (
@@ -62,7 +66,7 @@ export const Navbar = () => {
         {/* Studio Logo */}
         <Link
           href="/"
-          onClick={handleLinkClick}
+          onClick={(e) => handleLinkClick(e, "/", "Home")}
           onMouseEnter={playHoverSound}
           className="flex items-center gap-2.5 group"
         >
@@ -83,7 +87,7 @@ export const Navbar = () => {
               <Link
                 key={link.name}
                 href={link.href}
-                onClick={handleLinkClick}
+                onClick={(e) => handleLinkClick(e, link.href, link.name)}
                 onMouseEnter={playHoverSound}
                 className="relative py-2 text-xs font-semibold uppercase tracking-[0.2em] transition-all duration-300 text-slate-400 hover:text-slate-100"
               >
@@ -99,21 +103,21 @@ export const Navbar = () => {
           })}
         </nav>
 
-        {/* Controls (Audio panel + Universe switcher + Temporal Anomaly) */}
+        {/* Controls */}
         <div className="hidden md:flex items-center gap-5">
           
-          {/* Subtle Temporal Glitch Anomaly Trigger */}
+          {/* Temporal Anomaly (Glitch Trigger) locked */}
           <button
             onClick={triggerLoreTerminal}
             onMouseEnter={playHoverSound}
-            className="p-2 border border-dashed border-white/5 hover:border-white/20 rounded-full text-slate-600 hover:text-slate-300 transition-colors duration-300 cursor-pointer relative group"
+            className="p-2 border border-dashed border-white/5 hover:border-white/20 rounded-full text-slate-655 hover:text-slate-350 transition-colors duration-300 cursor-pointer relative group"
             title="Temporal anomaly detected"
           >
             <Terminal size={12} className="group-hover:animate-pulse" />
             <div className={`absolute top-0 right-0 w-1.5 h-1.5 rounded-full ${isEmotional ? "bg-amber-400" : "bg-cyan-400"} animate-ping`} style={{ animationDuration: "3s" }} />
           </button>
 
-          {/* Upgraded Audio Dashboard Panel */}
+          {/* Audio controls */}
           <div
             onMouseEnter={() => setShowVolumeSlider(true)}
             onMouseLeave={() => setShowVolumeSlider(false)}
@@ -136,7 +140,6 @@ export const Navbar = () => {
               <span>{isAudioEnabled ? "Audio On" : "Audio Off"}</span>
             </button>
 
-            {/* Expandable volume slider */}
             <AnimatePresence>
               {isAudioEnabled && showVolumeSlider && (
                 <motion.div
@@ -187,9 +190,8 @@ export const Navbar = () => {
           </button>
         </div>
 
-        {/* Mobile menu and controls */}
+        {/* Mobile controls */}
         <div className="flex items-center gap-3 lg:hidden">
-          {/* Tiny Glitch pixel for mobile */}
           <button
             onClick={triggerLoreTerminal}
             className="p-2 border border-slate-800 rounded-full text-slate-500 hover:text-slate-350"
@@ -247,7 +249,7 @@ export const Navbar = () => {
                   <Link
                     key={link.name}
                     href={link.href}
-                    onClick={handleLinkClick}
+                    onClick={(e) => handleLinkClick(e, link.href, link.name)}
                     className={`text-xs font-semibold uppercase tracking-[0.2em] py-2 transition-colors ${
                       isActive
                         ? isEmotional
@@ -267,3 +269,4 @@ export const Navbar = () => {
     </header>
   );
 };
+export default Navbar;

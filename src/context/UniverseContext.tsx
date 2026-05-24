@@ -18,6 +18,9 @@ interface UniverseContextType {
   setVolume: (vol: number) => void;
   scrollVolumeMultiplier: number; // Volume adaptation on scroll (0 to 1)
   setScrollVolumeMultiplier: (mult: number) => void;
+  lockedSection: string | null; // Track locked section overlay
+  triggerSectionLock: (sectionName: string) => void;
+  closeSectionLock: () => void;
 }
 
 const UniverseContext = createContext<UniverseContextType | undefined>(undefined);
@@ -36,6 +39,7 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
   const [audioZone, setAudioZoneState] = useState<AudioZone>("home");
   const [volume, setVolumeState] = useState(0.35); // Master volume slider
   const [scrollVolumeMultiplier, setScrollVolumeMultiplier] = useState(1.0); // Modulated on scroll
+  const [lockedSection, setLockedSection] = useState<string | null>(null);
 
   // Audio refs
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -54,7 +58,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
-  // 1. Local Storage Persistence & Mount Configurations
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedAudioEnabled = localStorage.getItem("rcu-audio-enabled") === "true";
@@ -80,7 +83,7 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
     };
   }, []);
 
-  // 2. Volume Modulation (Master * ScrollMultiplier)
+  // Volume Modulation (Master * ScrollMultiplier)
   useEffect(() => {
     if (masterGainRef.current && audioCtxRef.current) {
       const ctx = audioCtxRef.current;
@@ -88,7 +91,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       
       try {
         masterGainRef.current.gain.setValueAtTime(masterGainRef.current.gain.value, ctx.currentTime);
-        // Smooth transition over 0.2s to prevent pops on scroll/volume drag
         masterGainRef.current.gain.linearRampToValueAtTime(targetVolume, ctx.currentTime + 0.2);
       } catch (e) {
         // ignore Web Audio state conflicts
@@ -103,7 +105,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
-  // Initialize Web Audio Context
   const initAudio = () => {
     if (!audioCtxRef.current && typeof window !== "undefined") {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -113,7 +114,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
     if (audioCtxRef.current && !masterGainRef.current) {
       const ctx = audioCtxRef.current;
       const masterGain = ctx.createGain();
-      // Set to target volume or soft zero for custom fade-in
       masterGain.gain.setValueAtTime(0, ctx.currentTime);
       masterGain.connect(ctx.destination);
       masterGainRef.current = masterGain;
@@ -133,7 +133,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       }
       
       if (next) {
-        // Soft fade-in on startup
         if (masterGainRef.current && audioCtxRef.current) {
           const ctx = audioCtxRef.current;
           masterGainRef.current.gain.setValueAtTime(0, ctx.currentTime);
@@ -141,7 +140,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
         }
         startAmbience(audioZone, mode);
       } else {
-        // Soft fade-out
         if (masterGainRef.current && audioCtxRef.current) {
           const ctx = audioCtxRef.current;
           masterGainRef.current.gain.setValueAtTime(masterGainRef.current.gain.value, ctx.currentTime);
@@ -162,14 +160,12 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
-  // Play ambient audio when mode changes
   useEffect(() => {
     if (isAudioEnabled) {
       startAmbience(audioZone, mode);
     }
   }, [mode]);
 
-  // Clean up all running synths in a specific zone with a smooth fade-out
   const fadeOutZone = (zoneName: string, fadeTime = 0.8) => {
     const active = activeZonesRef.current[zoneName];
     if (!active || !audioCtxRef.current) return;
@@ -183,7 +179,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       // ignore
     }
     
-    // Stop after fade finishes
     setTimeout(() => {
       active.oscillators.forEach((node) => {
         try {
@@ -213,14 +208,13 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
     });
   };
 
-  // 3. Positional Crossfading Soundtrack System
+  // Positional Crossfading Soundtrack System
   const startAmbience = (zone: AudioZone, currentMode: UniverseMode) => {
     initAudio();
     const ctx = audioCtxRef.current;
     const masterGain = masterGainRef.current;
     if (!ctx || !masterGain) return;
 
-    // Crossfade: Fade out all other active zones
     const targetKey = `${zone}-${currentMode}`;
     Object.keys(activeZonesRef.current).forEach((key) => {
       if (key !== targetKey) {
@@ -228,7 +222,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       }
     });
 
-    // Clean up generative loops if exiting Neelo Nenu
     if (zone !== "neelo-nenu") {
       if (rainIntervalRef.current) {
         clearInterval(rainIntervalRef.current);
@@ -240,29 +233,20 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       }
     }
 
-    // If already playing this configuration, do not duplicate
     if (activeZonesRef.current[targetKey]) return;
 
-    // Create unique sub-gain node for crossfading
     const zoneGain = ctx.createGain();
     zoneGain.gain.setValueAtTime(0, ctx.currentTime);
     zoneGain.connect(masterGain);
-    
-    // Smooth crossfade fade-in ramp
     zoneGain.gain.linearRampToValueAtTime(1.0, ctx.currentTime + 1.2);
 
     const activeNodes: any[] = [];
 
-    // Synthesizer recipes based on mode and movie
     if (currentMode === "emotional") {
-      // Warm emotional universe drone (Warm Chord pad: Bb Major / F Major colors)
-      // F2 (87.3Hz), C3 (130.8Hz), F3 (174.6Hz), A3 (220.0Hz), D4 (293.7Hz)
       const freqs = [87.3, 130.8, 174.6, 220.0, 293.7];
       freqs.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
         const oscGain = ctx.createGain();
-
-        // slow LFO for filter/volume modulation
         const lfo = ctx.createOscillator();
         const lfoGain = ctx.createGain();
         lfo.frequency.setValueAtTime(0.08 + idx * 0.02, ctx.currentTime);
@@ -272,7 +256,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
 
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq + (Math.random() - 0.5) * 0.4, ctx.currentTime);
-        
         oscGain.gain.setValueAtTime(0.05 / freqs.length, ctx.currentTime);
 
         osc.connect(oscGain);
@@ -283,7 +266,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
         activeNodes.push(osc, lfo);
       });
     } else {
-      // Standard Core Universe drone (Deep Sci-Fi Rumble: detuned C1 (32.7Hz) + C2 (65.4Hz))
       const freqs = [32.7, 65.4, 98.0, 130.8];
       freqs.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
@@ -291,7 +273,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
         osc.type = idx % 2 === 0 ? "sawtooth" : "sine";
         osc.frequency.setValueAtTime(freq + (Math.random() - 0.5) * 0.2, ctx.currentTime);
 
-        // Lowpass filter to keep it extremely sub-bass and non-intrusive
         const filter = ctx.createBiquadFilter();
         filter.type = "lowpass";
         filter.frequency.setValueAtTime(120 - idx * 10, ctx.currentTime);
@@ -308,28 +289,24 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       });
     }
 
-    // Zone-specific overlays
     if (zone === "shadow-knight") {
-      // Dark Industrial Pulsating Synth Overlay
       const osc = ctx.createOscillator();
       const oscGain = ctx.createGain();
       const filter = ctx.createBiquadFilter();
       
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(73.42, ctx.currentTime); // D2
+      osc.frequency.setValueAtTime(73.42, ctx.currentTime);
 
       filter.type = "lowpass";
       filter.frequency.setValueAtTime(150, ctx.currentTime);
 
-      // Tremolo LFO (heartbeat)
       const lfo = ctx.createOscillator();
       const lfoGain = ctx.createGain();
-      lfo.frequency.setValueAtTime(1.8, ctx.currentTime); // slow pulse
+      lfo.frequency.setValueAtTime(1.8, ctx.currentTime);
       lfoGain.gain.setValueAtTime(0.06, ctx.currentTime);
       
       lfo.connect(lfoGain);
       lfoGain.connect(oscGain.gain);
-
       oscGain.gain.setValueAtTime(0.1, ctx.currentTime);
 
       osc.connect(filter);
@@ -341,8 +318,7 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       activeNodes.push(osc, lfo);
 
     } else if (zone === "strings-of-you") {
-      // Soft Ethereal Sci-Fi Hum with High Chime Drones
-      const freqs = [329.63, 440.0, 523.25]; // E4, A4, C5
+      const freqs = [329.63, 440.0, 523.25];
       freqs.forEach((freq) => {
         const osc = ctx.createOscillator();
         const oscGain = ctx.createGain();
@@ -352,7 +328,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
         osc.type = "sine";
         osc.frequency.setValueAtTime(freq, ctx.currentTime);
 
-        // Slow vibrato LFO
         lfo.frequency.setValueAtTime(0.12, ctx.currentTime);
         lfoGain.gain.setValueAtTime(0.3, ctx.currentTime);
         lfo.connect(lfoGain);
@@ -369,9 +344,6 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       });
 
     } else if (zone === "neelo-nenu") {
-      // Melancholic Rain + Slow Piano Ambient System (Subtle, Restrained)
-      
-      // 1. Rain Synthesizer (White noise with low pass - very quiet and ambient)
       const bufferSize = ctx.sampleRate * 2;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
@@ -385,14 +357,12 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
 
       const rainFilter = ctx.createBiquadFilter();
       rainFilter.type = "bandpass";
-      rainFilter.frequency.setValueAtTime(450, ctx.currentTime); // Lower cut for softer, darker rain
+      rainFilter.frequency.setValueAtTime(450, ctx.currentTime);
       rainFilter.Q.setValueAtTime(0.4, ctx.currentTime);
 
       const rainGain = ctx.createGain();
-      // Keep it extremely low and atmospheric (0.012)
       rainGain.gain.setValueAtTime(0.012, ctx.currentTime);
 
-      // Rain drop crackles (random pulses)
       const rainModulator = () => {
         if (!isAudioEnabled || audioZone !== "neelo-nenu") return;
         try {
@@ -410,8 +380,7 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       noise.start();
       activeNodes.push(noise);
 
-      // 2. Slow Ethereal Melancholic Piano Notes
-      const pianoNotes = [196.00, 220.00, 246.94, 261.63, 293.66, 329.63, 392.00]; // G3, A3, B3, C4, D4, E4, G4
+      const pianoNotes = [196.00, 220.00, 246.94, 261.63, 293.66, 329.63, 392.00];
       
       const triggerPianoNote = () => {
         if (!isAudioEnabled || audioZone !== "neelo-nenu" || !audioCtxRef.current) return;
@@ -427,11 +396,10 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
         noteOsc.frequency.setValueAtTime(randomNote, now);
 
         noteFilter.type = "lowpass";
-        noteFilter.frequency.setValueAtTime(800, now); // Softer transient cut
+        noteFilter.frequency.setValueAtTime(800, now);
 
         noteGain.gain.setValueAtTime(0, now);
-        // Piano-like envelope: soft attack, long decaying release
-        noteGain.gain.linearRampToValueAtTime(0.035, now + 0.05); // Lower peak volume
+        noteGain.gain.linearRampToValueAtTime(0.035, now + 0.05);
         noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 4.5);
 
         noteOsc.connect(noteFilter);
@@ -441,12 +409,10 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
         noteOsc.start(now);
         noteOsc.stop(now + 5);
 
-        // Schedule next random note - long pauses (5 to 10 seconds) for intimate loneliness
         const nextTime = 5000 + Math.random() * 5000;
         pianoTimeoutRef.current = setTimeout(triggerPianoNote, nextTime);
       };
 
-      // Trigger first note after 3 seconds
       pianoTimeoutRef.current = setTimeout(triggerPianoNote, 3000);
     }
 
@@ -456,7 +422,7 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
     };
   };
 
-  // Sleek click sound sweep (metallic ping)
+  // Sleek click
   const playClickSound = () => {
     if (!isAudioEnabled || !audioCtxRef.current) return;
     try {
@@ -481,7 +447,7 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
-  // Sleek hover sound (futuristic digital chirp with filter sweep)
+  // Sleek hover
   const playHoverSound = () => {
     if (!isAudioEnabled || !audioCtxRef.current) return;
     try {
@@ -497,7 +463,7 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
       filter.type = "bandpass";
       filter.frequency.setValueAtTime(350, ctx.currentTime);
       filter.frequency.exponentialRampToValueAtTime(450, ctx.currentTime + 0.08);
-      filter.Q.setValueAtTime(3.0, ctx.currentTime); // Resonance filter sweep
+      filter.Q.setValueAtTime(3.0, ctx.currentTime);
 
       gain.gain.setValueAtTime(0.008, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
@@ -511,6 +477,56 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
     } catch (e) {
       // ignore
     }
+  };
+
+  // 4. Temporary Warning Audio Alert Synthesis (Cinematic System Warning Alert, Soft & Low volume)
+  const playLockWarningAlert = () => {
+    if (!isAudioEnabled || !audioCtxRef.current) return;
+    try {
+      const ctx = audioCtxRef.current;
+      
+      // We will make two quiet triangle wave tones (100Hz and 80Hz) to represent a soft tech alert
+      const playBeep = (timeOffset: number, freq: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + timeOffset);
+
+        // Lowpass filter to make it soft, round, and distant rather than harsh
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(160, ctx.currentTime + timeOffset);
+
+        gain.gain.setValueAtTime(0, ctx.currentTime + timeOffset);
+        gain.gain.linearRampToValueAtTime(0.018, ctx.currentTime + timeOffset + 0.02); // very low volume
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + timeOffset + 0.22);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(ctx.currentTime + timeOffset);
+        osc.stop(ctx.currentTime + timeOffset + 0.25);
+      };
+
+      // Play double warning beep-beep
+      playBeep(0, 95);
+      playBeep(0.22, 80);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  // Lock Actions
+  const triggerSectionLock = (sectionName: string) => {
+    setLockedSection(sectionName);
+    playLockWarningAlert();
+  };
+
+  const closeSectionLock = () => {
+    playClickSound();
+    setLockedSection(null);
   };
 
   return (
@@ -527,7 +543,10 @@ export const UniverseProvider = ({ children }: { children: React.ReactNode }) =>
         volume,
         setVolume,
         scrollVolumeMultiplier,
-        setScrollVolumeMultiplier
+        setScrollVolumeMultiplier,
+        lockedSection,
+        triggerSectionLock,
+        closeSectionLock
       }}
     >
       {children}
